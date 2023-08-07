@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"daily-project/internal/data"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -29,6 +30,7 @@ type config struct {
 type application struct {
 	config config
 	logger *log.Logger
+	models data.Models
 }
 
 func openDB(cfg config) (*sql.DB, error) {
@@ -62,7 +64,7 @@ func main() {
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development | staging | production)")
 
 	// DB Options
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://postgres:admin@localhost/dailyproject?sslmode=disable", "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://postgres:admin@localhost/daily-project?sslmode=disable", "PostgreSQL DSN")
 
 	// Read the connection pool settings from command-line flags into the config struct.
 	// Notice the default values that we're using?
@@ -86,6 +88,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		logger: logger,
+		models: data.NewModels(db),
 	}
 
 	srv := &http.Server{

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"daily-project/internal/data"
 	"daily-project/internal/validator"
 	"encoding/json"
 	"net/http"
@@ -21,9 +22,14 @@ func (app *application) createNoteHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	note := &data.Note{
+		Content:   noteReqBody.Content,
+		CreatedAt: noteReqBody.CreatedAt,
+	}
+
 	v := validator.New()
 
-	v.Check(len(noteReqBody.Content) > 0, "content", "can't be empty string")
+	data.ValidateNote(v, note)
 
 	if !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
