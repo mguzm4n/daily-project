@@ -23,6 +23,7 @@ func (app *application) createNoteHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	note := &data.Note{
+		UserID:  1,
 		Content: noteReqBody.Content,
 	}
 

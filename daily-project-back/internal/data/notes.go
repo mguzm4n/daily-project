@@ -16,17 +16,18 @@ type Note struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Content   string    `json:"content"`
+	UserID    int64     `json:"user_id"`
 }
 
 func (n NoteModel) Insert(note *Note) error {
 	query := `
-		INSERT INTO notes (content)
-		VALUES ($1)
+		INSERT INTO notes (user_id, content)
+		VALUES ($1, $2)
 		RETURNING id, created_at, updated_at
 	`
 
 	// args will hold the $ parameters after VALUES keyword.
-	args := []interface{}{note.Content}
+	args := []interface{}{note.UserID, note.Content}
 	return n.DB.
 		QueryRow(query, args...).
 		Scan(&note.ID, &note.CreatedAt, &note.UpdatedAt)

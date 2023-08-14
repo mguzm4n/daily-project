@@ -1,7 +1,7 @@
 import axios from './axios';
 const url = "/v1/notes";
 
-type Note = {
+export type Note = {
     id: number,
     content: string,
     updated_at: Date,

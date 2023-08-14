@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import useTextArea from '../hooks/useTextArea';
 import { ErrorHolder } from '../utils/validations';
-import { useMutation } from 'react-query';
+import { useMutation, useQueryClient } from 'react-query';
 import { createNote } from '../services/notes';
 
 const NoteInput = () => {
+  const queryClient = useQueryClient();
+
   const [uiErrorState, setUiErrorState] = useState({
     omitErrors: false, alertErrors: false
   });
@@ -13,11 +15,22 @@ const NoteInput = () => {
   const { body, setBody, textAreaRef } = useTextArea();
   const { mutate: sendNote, isLoading: isCreatingNote } = useMutation({
     mutationFn: ({ content }: { content: string }) => createNote(content),
-    onSuccess: () => {
+    onSuccess: async (note) => {
       setBody("");
+
+      const key = ['user', 1, "notes"];
+
+      await queryClient.cancelQueries({ queryKey: key });
+      const prevNotes = queryClient.getQueryData(key);
+
+      // Optimistically update to the new value
+      // @ts-ignore
+      queryClient.setQueryData(key, (old) => [...old, note]);
+
+      // Return a context object with the snapshotted value
+      return { prevNotes };
     }
   });
-
 
   const setUiErrorsState = (key: 'omitErrors' | 'alertErrors', value: boolean) => {
     setUiErrorState( v => ({ ...v, [key]: value}));
