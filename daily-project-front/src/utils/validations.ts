@@ -67,5 +67,18 @@ export class ErrorHolder {
     newHolder.errors = this.errors;
     return newHolder;
   }
+
+  passedValidations() {
+    for (const [_, msgs] of this.errors.entries()) {
+      if (msgs.size > 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  hasErrors() {
+    return this.errors.size > 0;
+  }
 }
 
