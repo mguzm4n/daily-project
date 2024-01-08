@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"daily-project/internal/data"
+	"daily-project/internal/jsonlog"
 	"database/sql"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -29,7 +29,7 @@ type config struct {
 
 type application struct {
 	config config
-	logger *log.Logger
+	logger *jsonlog.Logger
 	models data.Models
 }
 
@@ -74,15 +74,15 @@ func main() {
 
 	flag.Parse()
 
-	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 
 	db, err := openDB(cfg)
 	if err != nil {
-		logger.Fatal(err)
+		logger.PrintFatal(err, nil)
 	}
 	defer db.Close()
 
-	logger.Printf("DB connection pool established")
+	logger.PrintInfo("DB connection pool established", nil)
 
 	// Declara la isntancia de aplicación
 	app := &application{
@@ -99,8 +99,11 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 	}
 
-	logger.Printf("Starting %s server on %s", cfg.env, srv.Addr)
-	err = srv.ListenAndServe()
-	logger.Fatal(err)
+	logger.PrintInfo("Starting %s server on %s", map[string]string{
+		"env":  cfg.env,
+		"addr": srv.Addr,
+	})
 
+	err = srv.ListenAndServe()
+	logger.PrintFatal(err, nil)
 }
