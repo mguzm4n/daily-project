@@ -7,6 +7,14 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at timestamp(0) with time zone NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS notes (
+    id bigserial PRIMARY KEY,
+    created_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
+    content text NOT NULL,
+    version integer NOT NULL DEFAULT 1,
+    user_id bigint NOT NULL REFERENCES users (id)
+);
+
 INSERT INTO users (firstname, lastname, email) VALUES ('marcelo', 'guzman', 'admin@mail.com');
-ALTER TABLE notes ADD user_id bigint REFERENCES users (id);
-UPDATE notes SET user_id = 1 WHERE user_id IS NULL;
+
