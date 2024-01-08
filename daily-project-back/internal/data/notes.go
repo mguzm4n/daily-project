@@ -4,6 +4,7 @@ import (
 	"daily-project/internal/validator"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -31,6 +32,60 @@ func (n NoteModel) Insert(note *Note) error {
 	return n.DB.
 		QueryRow(query, args...).
 		Scan(&note.ID, &note.CreatedAt, &note.UpdatedAt)
+}
+
+func (n NoteModel) GetAll(content string, f Filters) ([]*Note, Metadata, error) {
+	query := ""
+
+	if f.sortColumn() == "" {
+		query = `SELECT count(*) OVER(), id, user_id, content, created_at, updated_at 
+		FROM notes 
+		WHERE (to_tsvector('simple', content) @@ plainto_tsquery('simple', $1) OR $1 = '')
+		ORDER BY id ASC
+		LIMIT $2 OFFSET $3`
+	} else {
+		query = fmt.Sprintf(`SELECT count(*) OVER(), id, user_id, content, created_at, updated_at 
+		FROM notes 
+		WHERE (to_tsvector('simple', content) @@ plainto_tsquery('simple', $1) OR $1 = '')
+		ORDER BY %s %s, id ASC
+		LIMIT $2 OFFSET $3`, f.sortColumn(), f.sortDirection())
+	}
+
+	args := []interface{}{content, f.limit(), f.offset()}
+	rows, err := n.DB.Query(query, args...)
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+
+	defer rows.Close()
+
+	notes := []*Note{}
+	totalRecords := 0
+	for rows.Next() {
+		var note Note
+		err := rows.Scan(
+			&totalRecords,
+			&note.ID,
+			&note.UserID,
+			&note.Content,
+			&note.CreatedAt,
+			&note.UpdatedAt,
+		)
+
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+
+		notes = append(notes, &note)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	metadata := calculateMetadata(totalRecords, f.Page, f.PageSize)
+	// Finalmente retorna el arreglo a punteros de nota, metadata y error nulo
+	return notes, metadata, nil
 }
 
 func (n NoteModel) Get(id int64) (*Note, error) {
