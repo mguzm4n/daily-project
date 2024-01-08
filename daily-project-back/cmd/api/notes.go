@@ -44,7 +44,7 @@ func (app *application) createNoteHandler(w http.ResponseWriter, r *http.Request
 
 	// Send location of new resource URL.
 	headers := make(http.Header)
-	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", note.ID))
+	headers.Set("Location", fmt.Sprintf("/v1/notes/%d", note.ID))
 
 	// Write a JSON response with a 201 Created status code, the note data in the
 	// response body, and the Location header.
@@ -80,6 +80,48 @@ func (app *application) showNoteHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+func (app *application) listNotesHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Content string // for text search
+		data.Filters
+	}
+	v := validator.New()
+
+	// Call query to get avlues map
+	qs := r.URL.Query()
+
+	// Text search input
+	input.Content = app.readString(qs, "content", "")
+
+	// set list with available sort field options
+	input.Filters.SortSafelist = []string{"", "updated_at", "created_at", "-updated_at", "-created_at"}
+
+	// Pagination data input
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+
+	// Sort data input
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// Call the GetAll() method to retrieve the movies, passing in the various filter
+	// parameters.
+	notes, metadata, err := app.models.Notes.GetAll(input.Content, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"metadata": metadata, "notes": notes}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
 func (app *application) updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	nid, err := app.readIntIdParam(r)
 
@@ -96,6 +138,7 @@ func (app *application) updateNoteHandler(w http.ResponseWriter, r *http.Request
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
+		return
 	}
 
 	var input struct {
