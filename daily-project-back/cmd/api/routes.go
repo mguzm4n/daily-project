@@ -18,5 +18,8 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/v1/notes", app.createNoteHandler)
 
 	router.HandlerFunc(http.MethodPost, "/v1/users/:id/notes", app.showUserNotesHandler)
-	return app.recoverPanic(router)
+
+	return app.recoverPanic(
+		app.rateLimit(router),
+	)
 }
