@@ -4,6 +4,7 @@ import (
 	"context"
 	"daily-project/internal/data"
 	"daily-project/internal/jsonlog"
+	"daily-project/internal/mailer"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -31,12 +32,21 @@ type config struct {
 		burst   int
 		enabled bool
 	}
+
+	smtp struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
+	}
 }
 
 type application struct {
 	config config
 	logger *jsonlog.Logger
 	models data.Models
+	mailer mailer.Mailer
 }
 
 func openDB(cfg config) (*sql.DB, error) {
@@ -73,14 +83,22 @@ func main() {
 	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://postgres:admin@localhost/daily-project?sslmode=disable", "PostgreSQL DSN")
 
 	// Read the connection pool settings from command-line flags into the config struct.
-	// Notice the default values that we're using?
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
 
+	// rate limiter configs.
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+
+	// SMTP configs.
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 2525, "SMTP port")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "a0782b6ec15cdd", "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "287ce2ff090a6f", "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Example <from@example.com>", "SMTP sender")
+
 	flag.Parse()
 
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
@@ -98,6 +116,11 @@ func main() {
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db),
+		mailer: mailer.New(
+			cfg.smtp.host, cfg.smtp.port,
+			cfg.smtp.username, cfg.smtp.password,
+			cfg.smtp.sender,
+		),
 	}
 
 	srv := &http.Server{
@@ -108,7 +131,7 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 	}
 
-	logger.PrintInfo("Starting %s server on %s", map[string]string{
+	logger.PrintInfo("Starting server", map[string]string{
 		"env":  cfg.env,
 		"addr": srv.Addr,
 	})
