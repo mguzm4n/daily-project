@@ -11,6 +11,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var AnonymousUser = &User{}
+
 var (
 	ErrDuplicateEmail = errors.New("duplicate email")
 )
@@ -239,4 +241,8 @@ func (n UserModel) UpdateActivated(userId int64, state bool) error {
 
 	var user User
 	return n.DB.QueryRow(query, args...).Scan(&user.UpdatedAt)
+}
+
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
 }

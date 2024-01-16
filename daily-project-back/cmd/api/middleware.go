@@ -1,6 +1,12 @@
 package main
 
 import (
+	"errors"
+	"strings"
+
+	"daily-project/internal/data"
+	"daily-project/internal/validator"
+
 	"fmt"
 	"net"
 	"net/http"
@@ -86,4 +92,50 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		},
 	)
+}
+
+func (app *application) authenticate(next http.Handler) http.Handler {
+	middlewareFunc := func(w http.ResponseWriter, r *http.Request) {
+		// Response may vary depending on value of this Auth header.
+		w.Header().Add("Vary", "Authorization")
+
+		// get the authorization header
+		authorizationHeader := r.Header.Get("Authorization")
+		if authorizationHeader == "" {
+			r = app.contextSetUser(r, data.AnonymousUser)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// expect format "Bearer + " " + <Token>"
+		headerSplit := strings.Split(authorizationHeader, " ")
+		if len(headerSplit) != 2 || headerSplit[0] != "Bearer" {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		token := headerSplit[1]
+		v := validator.New()
+		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// get details of user knowing it's valid
+		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrRecordNotFound):
+				app.invalidAuthenticationTokenResponse(w, r)
+			default:
+				app.serverErrorResponse(w, r, err)
+			}
+			return
+		}
+
+		r = app.contextSetUser(r, user)
+		next.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(middlewareFunc)
 }
