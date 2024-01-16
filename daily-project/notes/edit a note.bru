@@ -1,0 +1,17 @@
+meta {
+  name: edit a note
+  type: http
+  seq: 3
+}
+
+put {
+  url: http://localhost:4000/v1/notes/1
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "content": "hi edited 2"
+  }
+}

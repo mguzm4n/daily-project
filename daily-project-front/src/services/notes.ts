@@ -4,8 +4,8 @@ const url = "/v1/notes";
 export type Note = {
     id: number,
     content: string,
-    updated_at: Date,
-    created_at: Date,
+    updatedAt: Date,
+    createdAt: Date,
 };
 
 export async function showNote(id: number) {
@@ -17,5 +17,11 @@ export async function showNote(id: number) {
 export async function createNote(content: string) {
     return axios
         .post<{ note: Note }>(url, { content })
+        .then(r => r.data.note);
+}
+
+export async function updateNote(id: number, content: string) {
+    return axios
+        .put<{ note: Note }>(`${url}/${id}`, { content })
         .then(r => r.data.note);
 }

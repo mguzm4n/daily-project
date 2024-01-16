@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/sha256"
 	"daily-project/internal/validator"
 	"database/sql"
 	"errors"
@@ -189,4 +190,53 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 		}
 	}
 	return &user, nil
+}
+
+func (m UserModel) GetForToken(scopeType string, plaintextToken string) (*User, error) {
+	query := `
+		SELECT users.id, users.created_at, users.firstname, users.lastname, users.email, users.activated
+		FROM users, tokens
+		WHERE users.id = tokens.user_id 
+					AND tokens.scope = $1 
+					AND tokens.hash = $2 
+					AND tokens.expiry > $3
+	`
+
+	tokenHash := sha256.Sum256([]byte(plaintextToken))
+	args := []interface{}{scopeType, tokenHash[:], time.Now()}
+
+	var user User
+	err := m.DB.QueryRow(query, args...).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Firstname,
+		&user.Lastname,
+		&user.Email,
+		&user.Activated,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
+}
+
+func (n UserModel) UpdateActivated(userId int64, state bool) error {
+	query := `UPDATE users 
+		SET activated = $1, updated_at = NOW()
+		WHERE id = $2
+		RETURNING updated_at`
+
+	args := []interface{}{
+		state,
+		userId,
+	}
+
+	var user User
+	return n.DB.QueryRow(query, args...).Scan(&user.UpdatedAt)
 }
