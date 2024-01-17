@@ -139,3 +139,30 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(middlewareFunc)
 }
+
+func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.HandlerFunc {
+	middlewareFunc := func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+		if user.IsAnonymous() {
+			app.authenticationRequiredResponse(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(middlewareFunc)
+}
+
+func (app *application) requireActivatedUser(next http.HandlerFunc) http.HandlerFunc {
+	middlewareFunc := func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+
+		if !user.Activated {
+			app.inactiveAccountResponse(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+
+	return app.requireAuthenticatedUser(middlewareFunc)
+}
