@@ -13,10 +13,10 @@ func (app *application) routes() http.Handler {
 
 	// require activated user on notes/**
 	router.HandlerFunc(http.MethodGet, "/v1/notes/:id", app.requireActivatedUser(app.showNoteHandler))
-	router.HandlerFunc(http.MethodGet, "/v1/notes", app.requireActivatedUser(app.listNotesHandler))
+	router.HandlerFunc(http.MethodGet, "/v1/notes", app.requirePermission("movie:read", app.listNotesHandler))
 	router.HandlerFunc(http.MethodPut, "/v1/notes/:id", app.requireActivatedUser(app.updateNoteHandler))
 	router.HandlerFunc(http.MethodDelete, "/v1/notes/:id", app.requireActivatedUser(app.deleteNoteHandler))
-	router.HandlerFunc(http.MethodPost, "/v1/notes", app.requireActivatedUser(app.createNoteHandler))
+	router.HandlerFunc(http.MethodPost, "/v1/notes", app.requirePermission("movie:write", app.createNoteHandler))
 
 	// routes for users
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.registerUserHandler)

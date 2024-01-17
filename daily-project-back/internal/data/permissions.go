@@ -13,12 +13,14 @@ type Permission struct {
 	Code         string
 }
 
-func (m PermissionModel) GetAllForRole(roleId int64) ([]Permission, error) {
+type Permissions []Permission
+
+func (m PermissionModel) GetAllForRole(roleId int64) (Permissions, error) {
 	query := `
 		SELECT permissions.id, permissions.code
 		FROM roles_permissions, permissions
 		WHERE roles_permissions.permission_id = permissions.id 
-			AND roles.id = $1
+			AND roles_permissions.role_id = $1
 	`
 
 	rows, err := m.DB.Query(query, roleId)
@@ -43,7 +45,17 @@ func (m PermissionModel) GetAllForRole(roleId int64) ([]Permission, error) {
 	return permissions, nil
 }
 
-func (m PermissionModel) GetAllForUser(userId int64) ([]Permission, error) {
+func (p Permissions) Includes(code string) bool {
+	for _, permission := range p {
+		if permission.Code == code {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (m PermissionModel) GetAllForUser(userId int64) (Permissions, error) {
 	query := `
 	SELECT DISTINCT permissions.id, permissions.code
 	FROM roles_users, roles_permissions, permissions
